@@ -15,6 +15,10 @@
  */
 package com.alibaba.fastjson.serializer;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONException;
+import com.alibaba.fastjson.util.IOUtils;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Writer;
@@ -24,20 +28,16 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.zip.GZIPOutputStream;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONException;
-import com.alibaba.fastjson.util.IOUtils;
-
 /**
  * @author wenshao[szujobs@hotmail.com]
  */
 public class JSONSerializer extends SerializeFilterable {
 
-    protected final SerializeConfig                  config;
-    public final SerializeWriter                     out;
+    protected final SerializeConfig config;
+    public final SerializeWriter out;
 
-    private int                                      indentCount = 0;
-    private String                                   indent      = "\t";
+    private int indentCount = 0;
+    private String indent = "\t";
 
     /**
      * #1868 为了区分全局配置（FastJsonConfig）的日期格式配置以及toJSONString传入的日期格式配置
@@ -45,32 +45,42 @@ public class JSONSerializer extends SerializeFilterable {
      * 1. dateFormatPattern、dateFormat只作为toJSONString传入配置使用；
      * 2. 新增fastJsonConfigDateFormatPattern，用于存储通过（FastJsonConfig）配置的日期格式
      */
-    private String                                   dateFormatPattern;
-    private DateFormat                               dateFormat;
+    private String dateFormatPattern;
+    private DateFormat dateFormat;
 
-    private String                                   fastJsonConfigDateFormatPattern;
+    private String fastJsonConfigDateFormatPattern;
 
-    protected IdentityHashMap<Object, SerialContext> references  = null;
-    protected SerialContext                          context;
+    protected IdentityHashMap<Object, SerialContext> references = null;
+    protected SerialContext context;
 
-    protected TimeZone                               timeZone    = JSON.defaultTimeZone;
-    protected Locale                                 locale      = JSON.defaultLocale;
+    protected TimeZone timeZone = JSON.defaultTimeZone;
+    protected Locale locale = JSON.defaultLocale;
 
-    public JSONSerializer(){
+    public JSONSerializer() {
         this(new SerializeWriter(), SerializeConfig.getGlobalInstance());
     }
 
-    public JSONSerializer(SerializeWriter out){
+    public JSONSerializer(SerializeWriter out) {
         this(out, SerializeConfig.getGlobalInstance());
     }
 
-    public JSONSerializer(SerializeConfig config){
+    public JSONSerializer(SerializeConfig config) {
         this(new SerializeWriter(), config);
     }
 
-    public JSONSerializer(SerializeWriter out, SerializeConfig config){
+    public JSONSerializer(SerializeWriter out, SerializeConfig config) {
+        this(out, config, null);
+    }
+
+    public JSONSerializer(SerializeWriter out, SerializeConfig config, IdentityHashMap references) {
         this.out = out;
         this.config = config;
+        this.references = references;
+    }
+
+    public JSONSerializer(SerializeWriter sw, JSONSerializer parent) {
+        this(sw);
+        this.references = parent.references;
     }
 
     public String getDateFormatPattern() {
@@ -83,7 +93,7 @@ public class JSONSerializer extends SerializeFilterable {
     public DateFormat getDateFormat() {
         if (dateFormat == null) {
             if (dateFormatPattern != null) {
-                dateFormat = this.generateDateFormat( dateFormatPattern );
+                dateFormat = this.generateDateFormat(dateFormatPattern);
             }
         }
 
@@ -160,9 +170,9 @@ public class JSONSerializer extends SerializeFilterable {
 
     public final boolean isWriteClassName(Type fieldType, Object obj) {
         return out.isEnabled(SerializerFeature.WriteClassName) //
-               && (fieldType != null //
-                   || (!out.isEnabled(SerializerFeature.NotWriteRootClassName)) //
-                   || (context != null && (context.parent != null)));
+                && (fieldType != null //
+                || (!out.isEnabled(SerializerFeature.NotWriteRootClassName)) //
+                || (context != null && (context.parent != null)));
     }
 
     public boolean containsReference(Object value) {
@@ -203,7 +213,7 @@ public class JSONSerializer extends SerializeFilterable {
         }
 
         SerialContext rootContext = context;
-        for (;;) {
+        for (; ; ) {
             if (rootContext.parent == null) {
                 break;
             }
@@ -222,15 +232,15 @@ public class JSONSerializer extends SerializeFilterable {
 
     public boolean checkValue(SerializeFilterable filterable) {
         return (valueFilters != null && valueFilters.size() > 0) //
-               || (contextValueFilters != null && contextValueFilters.size() > 0) //
-               || (filterable.valueFilters != null && filterable.valueFilters.size() > 0)
-               || (filterable.contextValueFilters != null && filterable.contextValueFilters.size() > 0)
-               || out.writeNonStringValueAsString;
+                || (contextValueFilters != null && contextValueFilters.size() > 0) //
+                || (filterable.valueFilters != null && filterable.valueFilters.size() > 0)
+                || (filterable.contextValueFilters != null && filterable.contextValueFilters.size() > 0)
+                || out.writeNonStringValueAsString;
     }
-    
+
     public boolean hasNameFilters(SerializeFilterable filterable) {
         return (nameFilters != null && nameFilters.size() > 0) //
-               || (filterable.nameFilters != null && filterable.nameFilters.size() > 0);
+                || (filterable.nameFilters != null && filterable.nameFilters.size() > 0);
     }
 
     public boolean hasPropertyFilters(SerializeFilterable filterable) {
@@ -317,7 +327,6 @@ public class JSONSerializer extends SerializeFilterable {
 
     /**
      * @since 1.2.57
-     *
      */
     public final void writeAs(Object object, Class type) {
         if (object == null) {
@@ -451,5 +460,4 @@ public class JSONSerializer extends SerializeFilterable {
     public void close() {
         this.out.close();
     }
-   
 }

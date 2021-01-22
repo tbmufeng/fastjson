@@ -15,13 +15,12 @@
  */
 package com.alibaba.fastjson.serializer;
 
+import com.alibaba.fastjson.JSONObject;
+
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
-
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
 
 /**
  * @author wenshao[szujobs@hotmail.com]
@@ -31,7 +30,7 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
     public static MapSerializer instance = new MapSerializer();
 
     private static final int NON_STRINGKEY_AS_STRING = SerializerFeature.of(
-            new SerializerFeature[] {
+            new SerializerFeature[]{
                     SerializerFeature.BrowserCompatible,
                     SerializerFeature.WriteNonStringKeyAsString,
                     SerializerFeature.BrowserSecure});
@@ -44,7 +43,7 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
         write(serializer, object, fieldName, fieldType, features, false);
     }
 
-    @SuppressWarnings({ "rawtypes"})
+    @SuppressWarnings({"rawtypes"})
     public void write(JSONSerializer serializer
             , Object object
             , Object fieldName
@@ -96,7 +95,7 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
             if (out.isEnabled(SerializerFeature.WriteClassName)) {
                 String typeKey = serializer.config.typeKey;
                 Class<?> mapClass = map.getClass();
-                boolean containsKey = (mapClass == JSONObject.class || mapClass == HashMap.class || mapClass == LinkedHashMap.class) 
+                boolean containsKey = (mapClass == JSONObject.class || mapClass == HashMap.class || mapClass == LinkedHashMap.class)
                         && map.containsKey(typeKey);
                 if (!containsKey) {
                     out.writeFieldName(typeKey);
@@ -118,7 +117,7 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
                                 continue;
                             }
                         } else if (entryKey.getClass().isPrimitive() || entryKey instanceof Number) {
-                            String strKey = JSON.toJSONString(entryKey);
+                            String strKey = serializeObjectKey(serializer, entryKey);
                             if (!this.applyName(serializer, object, strKey)) {
                                 continue;
                             }
@@ -133,14 +132,14 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
                                 continue;
                             }
                         } else if (entryKey.getClass().isPrimitive() || entryKey instanceof Number) {
-                            String strKey = JSON.toJSONString(entryKey);
+                            String strKey = serializeObjectKey(serializer, entryKey);
                             if (!this.applyName(serializer, object, strKey)) {
                                 continue;
                             }
                         }
                     }
                 }
-                
+
                 {
                     List<PropertyFilter> propertyFilters = serializer.propertyFilters;
                     if (propertyFilters != null && propertyFilters.size() > 0) {
@@ -149,7 +148,7 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
                                 continue;
                             }
                         } else if (entryKey.getClass().isPrimitive() || entryKey instanceof Number) {
-                            String strKey = JSON.toJSONString(entryKey);
+                            String strKey = serializeObjectKey(serializer, entryKey);
                             if (!this.apply(serializer, object, strKey, value)) {
                                 continue;
                             }
@@ -164,21 +163,21 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
                                 continue;
                             }
                         } else if (entryKey.getClass().isPrimitive() || entryKey instanceof Number) {
-                            String strKey = JSON.toJSONString(entryKey);
+                            String strKey = serializeObjectKey(serializer, entryKey);
                             if (!this.apply(serializer, object, strKey, value)) {
                                 continue;
                             }
                         }
                     }
                 }
-                
+
                 {
                     List<NameFilter> nameFilters = serializer.nameFilters;
                     if (nameFilters != null && nameFilters.size() > 0) {
                         if (entryKey == null || entryKey instanceof String) {
                             entryKey = this.processKey(serializer, object, (String) entryKey, value);
                         } else if (entryKey.getClass().isPrimitive() || entryKey instanceof Number) {
-                            String strKey = JSON.toJSONString(entryKey);
+                            String strKey = serializeObjectKey(serializer, entryKey);
                             entryKey = this.processKey(serializer, object, strKey, value);
                         }
                     }
@@ -189,7 +188,7 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
                         if (entryKey == null || entryKey instanceof String) {
                             entryKey = this.processKey(serializer, object, (String) entryKey, value);
                         } else if (entryKey.getClass().isPrimitive() || entryKey instanceof Number) {
-                            String strKey = JSON.toJSONString(entryKey);
+                            String strKey = serializeObjectKey(serializer, entryKey);
                             entryKey = this.processKey(serializer, object, strKey, value);
                         }
                     }
@@ -201,7 +200,7 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
                     } else {
                         boolean objectOrArray = entryKey instanceof Map || entryKey instanceof Collection;
                         if (!objectOrArray) {
-                            String strKey = JSON.toJSONString(entryKey);
+                            String strKey = serializeObjectKey(serializer, entryKey);
                             value = this.processValue(serializer, null, object, strKey, value, features);
                         }
                     }
@@ -231,7 +230,7 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
 
                     if ((out.isEnabled(NON_STRINGKEY_AS_STRING) || SerializerFeature.isEnabled(features, SerializerFeature.WriteNonStringKeyAsString))
                             && !(entryKey instanceof Enum)) {
-                        String strEntryKey = JSON.toJSONString(entryKey);
+                        String strEntryKey = serializeObjectKey(serializer, entryKey);
                         serializer.write(strEntryKey);
                     } else {
                         serializer.write(entryKey);
@@ -285,4 +284,25 @@ public class MapSerializer extends SerializeFilterable implements ObjectSerializ
         }
     }
 
+    String serializeObjectKey(JSONSerializer parent, Object key) {
+        //继承父serializer的配置
+        SerializeWriter sw = new SerializeWriter();
+        int maxBufferSize = parent.out.getMaxBufSize();
+        if (maxBufferSize > 0) {
+            int useCount = parent.out.count;
+            int left = maxBufferSize - useCount;
+            if (left > 0) {
+                sw.setMaxBufSize(parent.out.getMaxBufSize());
+            }
+        }
+        JSONSerializer serializer = new JSONSerializer(sw, parent);
+        serializer.setContext(parent.getContext());
+        serializer.write(key);
+        if (maxBufferSize > 0) {
+            //移除消耗的buffer
+            int usedCount = sw.count;
+            parent.out.setMaxBufSize(maxBufferSize - usedCount);
+        }
+        return serializer.toString();
+    }
 }
